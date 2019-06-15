@@ -191,7 +191,7 @@ class GeneratorV3(torch.nn.Module):
         up = self.upres2(up,projection)
         up = self.attn2(up)
         up = self.upres3(up,projection)
-        up = self.upres4(up,projection)
+        out = self.upres4(up,projection)
         return out
 
     def forward_sequence(self,ys,embedding):
@@ -221,10 +221,7 @@ class Embedder(torch.nn.Module):
         self.relu = nn.ReLU() # N x 128 
         
     def forward(self,x,y):
-        print("X",x.size())
-        print("Y",y.size())
         cat = torch.cat((x,y),1)
-        print("CAT",cat.size())
         down = self.downres1(cat)
         down = self.downres2(down)
         down = self.downres3(down)
@@ -237,7 +234,7 @@ class Embedder(torch.nn.Module):
     def average_embeddings(self,sampled_data):
         scale = 1/len(sampled_data)
         out = torch.zeros(1,1,self.embedding_dims)
-        for (x , y) in sampled_data:
+        for x , y in sampled_data:
             o = scale * self.forward(x,y)
             out = out + o
         return out

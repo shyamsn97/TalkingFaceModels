@@ -84,7 +84,7 @@ class VGGFace(nn.Module):
 		self.load_weights()
 
 
-	def load_weights(self, path="pretrained_vggface/VGG_FACE.t7"):
+	def load_weights(self, path="/mnt/d/ssudhakaran/Code/SamsungFace/SamsungFace/pretrained_vggface/VGG_FACE.t7"):
 		model = torchfile.load(path)
 		counter = 1
 		block = 1

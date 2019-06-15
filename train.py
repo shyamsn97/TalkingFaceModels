@@ -58,28 +58,23 @@ class MetaLearningStage:
 		bar = tqdm(np.arange(epochs))
 		generator_losses = [-1]
 		discriminator_losses = [-1]
+		self.generator.train()
+		self.embedder.train()
+		self.discriminator.train()
 		for i in bar:
 			bar.set_description("Generator + Embedder loss: {}, Discriminator loss: {}".format(generator_losses[-1],discriminator_losses[-1]))
 			gen_loss = 0.0
 			disc_loss = 0.0
 			for index, data in enumerate(self.dataloader):
 				target, sampled_vids = data
-				print(target)
 				target, sampled_vids = self.imgsToDevice(target,sampled_vids)
 				x = target[0]
 				y = target[1]
-				# Generator Loss
-				self.generator_embedder_optimizer.zero_grad()
-				avg_embedding = self.embedder.average_embeddings(sampled_vids)
-				x_hat = self.generator(y,avg_embedding)
-				real_realism, real_activations, real_spliced = self.discriminator(x,y,index)
-				fake_realism, fake_activations, fake_spliced = self.discriminator(x_hat,y,index)
-				generator_embedder_loss = self.loss.generatorLoss(x,x_hat,fake_realism,
-																real_activations,fake_activation,avg_embedding,real_spliced,self.args)
-				gen_loss += generator_embedder_loss.item()
-				generator_embedder_loss.backward()
-				self.generator_embedder_optimizer.step()
-				
+
+
+
+				avg_embedding = self.embedder.average_embeddings(sampled_vids).detach()
+				x_hat = self.generator(y,avg_embedding).detach()
 				# Discriminator Loss
 				self.discriminator_optimizer.zero_grad()
 				# Compute again, just in case gradients reset
@@ -89,5 +84,17 @@ class MetaLearningStage:
 				disc_loss += discriminator_loss.item()
 				discriminator_loss.backward()
 				self.discriminator_optimizer.step()
+				
+				# Generator Loss
+				self.generator_embedder_optimizer.zero_grad()
+				avg_embedding = self.embedder.average_embeddings(sampled_vids)
+				x_hat = self.generator(y,avg_embedding)
+				real_realism, real_activations, real_spliced = self.discriminator(x,y,index)
+				fake_realism, fake_activations, fake_spliced = self.discriminator(x_hat,y,index)
+				generator_embedder_loss = self.loss.generatorLoss(x,x_hat,fake_realism,
+																real_activations,fake_activations,avg_embedding,real_spliced,self.args)
+				gen_loss += generator_embedder_loss.item()
+				generator_embedder_loss.backward()
+				self.generator_embedder_optimizer.step()
 			generator_losses.append(gen_loss)
 			discriminator_losses.append(disc_loss)

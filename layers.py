@@ -88,7 +88,7 @@ class SelfAttn(nn.Module):
 		out = out.view(m_batchsize,C,width,height)
 		
 		out = self.gamma*out + x
-		return out,attention
+		return out
 
 """
 	Residual Layers
@@ -331,10 +331,10 @@ class ResUpAdaInV2(nn.Module):
 					   spectral = True, init_zero_weights = False,activation=None,
 					   pool = None,norm = None) 
 		# N x right_channels[1] x H * 2 x W * 2 
-		# left size
+		# left side
 		self.upsamplel1 = nn.UpsamplingNearest2d(scale_factor=up_scale)
 		# N x C x H * 2 x W * 2
-		convl1 = conv2d(in_channels = inp_channel, out_channels = right_channels[1], 
+		self.convl1 = conv2d(in_channels = inp_channel, out_channels = right_channels[1], 
 					   bias = True, kernel_size = 1, stride = 1, padding=0, 
 					   spectral = True, init_zero_weights = False,activation=None,
 					   pool = None,norm = None)

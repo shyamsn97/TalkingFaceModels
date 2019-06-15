@@ -8,9 +8,13 @@ from utils import *
 from train import *
 
 
-reshaped_dir = os.getcwd() + "/data/youtube_aligned/aligned_images_DB_reshaped"
-landmark_dir = os.getcwd() + "/data/youtube_aligned/aligned_images_DB_landmarks"
-overlay_dir = os.getcwd() + "/data/youtube_aligned/aligned_images_DB_landmarks_overlayed"
+# reshaped_dir = os.getcwd() + "/mnt/d/ssudhakaran/Code/SamsungFace/SamsungFace/data/youtube_aligned/aligned_images_DB_reshaped"
+# landmark_dir = os.getcwd() + "/mnt/d/ssudhakaran/Code/SamsungFace/SamsungFace/data/youtube_aligned/aligned_images_DB_landmarks"
+# overlay_dir = os.getcwd() + "/mnt/d/ssudhakaran/Code/SamsungFace/SamsungFace/data/youtube_aligned/aligned_images_DB_landmarks_overlayed"
+
+reshaped_dir = "/mnt/d/ssudhakaran/Code/SamsungFace/SamsungFace/data/youtube_aligned/aligned_images_DB_reshaped"
+landmark_dir = "/mnt/d/ssudhakaran/Code/SamsungFace/SamsungFace/data/youtube_aligned/aligned_images_DB_landmarks"
+overlay_dir = "/mnt/d/ssudhakaran/Code/SamsungFace/SamsungFace/data/youtube_aligned/aligned_images_DB_landmarks_overlayed"
 
 reshaped_d, reshaped_sequence_count, reshaped_sequences = get_data_dict(reshaped_dir)
 landmark_d, landmark_sequence_count, landmark_sequences = get_data_dict(landmark_dir)

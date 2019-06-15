@@ -93,7 +93,7 @@ def getLandmarks_Mask(img):
     gray = img #no grayscale image
     
     detector = dlib.get_frontal_face_detector()
-    predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
+    predictor = dlib.shape_predictor("/mnt/d/ssudhakaran/Code/SamsungFace/SamsungFace/shape_predictor_68_face_landmarks.dat")
     landmark_img = np.zeros_like(img) + 255.0
 
     faces = detector(gray)

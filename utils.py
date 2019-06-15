@@ -16,7 +16,7 @@ def adaIn(content,style,eps=1e-6):
     style_mu,style_std = getMoments(style)
     norm = ((content - content_mu)/ (content_std + eps)) #stability
     norm_style = style_std*(norm) + style_mu
-    return norm_style.view_as(conent)
+    return norm_style.view_as(content)
 
 def convOutput(in_size, kernel_size, stride, padding = 0):
     output = int((in_size - kernel_size + 2*(padding)) / stride + 1)

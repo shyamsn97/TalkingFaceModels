@@ -15,8 +15,9 @@ class Loss:
 			perceptual loss between VGG19 and VGGFace
 		"""
 		vgg19_real, vgg19_real_activations = self.vgg19(x,vgg19_layers)
-		vgg19_fake, vgg19_fake_activations = self.vgg19(x_hat,vggface_layers)
+		vgg19_fake, vgg19_fake_activations = self.vgg19(x_hat,vgg19_layers)
 		
+
 		vgg19_loss = 0
 		for i in range(len(vgg19_layers)):
 			vgg19_loss += F.l1_loss(vgg19_real_activations[i],vgg19_fake_activations[i])
@@ -41,7 +42,7 @@ class Loss:
 		return loss
 	
 	def lMCH(self, embedding, splice):
-		return F.l1_loss(embedding, splice)
+		return F.l1_loss(embedding.view(-1,1), splice.view(-1,1))
 
 	def discriminatorLoss(self, fake_realism_score, real_realism_score):
 		return torch.max(torch.zeros(1),1.0 + fake_realism_score) + torch.max(torch.zeros(1),1.0 - real_realism_score)
