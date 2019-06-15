@@ -8,6 +8,8 @@ from utils import *
 
 import numpy as np
 import torch
+import os
+import datetime
 from tqdm import tqdm
 
 class MetaLearningStage:
@@ -53,7 +55,7 @@ class MetaLearningStage:
 			sampled_vids[i][1] = sampled_vids[i][1].float()
 		return target, sampled_vids
 
-	def train(self,epochs):
+	def train(self,epochs,save=True):
 		print("Training for {} epochs".format(epochs))
 		bar = tqdm(np.arange(epochs))
 		generator_losses = [-1]
