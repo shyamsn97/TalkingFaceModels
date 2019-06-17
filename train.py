@@ -130,3 +130,4 @@ class Composer:
 
 			generator_losses.append(gen_loss)
 			discriminator_losses.append(disc_loss)
+		saver.saveCheckpoint("final",self.toDict("final"))
