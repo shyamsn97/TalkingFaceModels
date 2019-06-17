@@ -12,23 +12,34 @@ import os
 import datetime
 from tqdm import tqdm
 
-class MetaLearningStage:
-	def __init__(self,projection_dims,embedding_dims,reshaped_sequences,landmark_sequences,landmark_sequence_count,num_sequences,k=8,args={}):
+class Composer:
+	def __init__(self,projection_dims,embedding_dims,reshaped_sequences,landmark_sequences,landmark_sequence_count,num_sequences,k=8,checkpoint=None):
+		self.projection_dims = projection_dims
+		self.embedding_dims = embedding_dims
+		self.num_sequences = num_sequences
 		self.dataset = MetaDataset(reshaped_frame_sequences=reshaped_sequences,
 									landmark_frame_sequences=landmark_sequences,num_videos=landmark_sequence_count,k=k)
 		self.dataloader = makeDataloader(self.dataset)
 		print("Successfully created Dataloader")
+
 		self.generator = GeneratorV3(projection_dims)
 		print("Successfully created Generator")
 		self.embedder = Embedder(embedding_dims)
 		print("Successfully created Embedder")
 		self.discriminator = Discriminator(num_sequences,projection_dims)
 		print("Successfully created Discriminator")
-
 		self.generator_embedder_optimizer = torch.optim.Adam(list(self.generator.parameters())+list(self.embedder.parameters()), 
 																lr=1e-3, weight_decay=1e-6)
 		self.discriminator_optimizer = torch.optim.Adam(self.discriminator.parameters(), 
 														lr=1e-3, weight_decay=1e-6)
+
+		if checkpoint:
+			self.generator.load_state_dict(checkpoint['generator'])
+			self.embedder.load_state_dict(checkpoint['embedder'])
+			self.discriminator.load_state_dict(checkpoint['discriminator'])
+			self.generator_embedder_optimizer.load_state_dict(checkpoint['generator_embedder_optimizer'])			
+			self.discriminator_optimizer.load_state_dict(checkpoint['discriminator_optimizer'])
+
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		self.loss = Loss()
 		self.args = {
@@ -36,17 +47,31 @@ class MetaLearningStage:
 			"vggface_layers": [1,6,11,18,25],
 			"vgg19_weight": 10**(-2), 
 			"vggface_weight": 10**(-3)
-
 		}
 
-	# def imgsToDevice(self,target,sampled_vids):
-	# 	target[0] = target[0].to(self.device)
-	# 	target[1] = target[1].to(self.device)
-	# 	for i in range(len(sampled_vids)):
-	# 		sampled_vids[i][0] = sampled_vids[i][0].to(self.device)
-	# 		sampled_vids[i][1] = sampled_vids[i][1].to(self.device)
-	# 	return target, sampled_vids
-	
+	def make_models(self,projection_dims,embedding_dims,num_sequences):
+		generator = GeneratorV3(projection_dims)
+		print("Successfully created Generator")
+		embedder = Embedder(embedding_dims)
+		print("Successfully created Embedder")
+		discriminator = Discriminator(num_sequences,projection_dims)
+		print("Successfully created Discriminator")
+
+		return generator, embedder, discriminator
+
+	def toDict(self,epoch):
+		args = {}
+		args["epoch"] = epoch
+		args["projection_dims"] = self.projection_dims
+		args["embedding_dims"] = self.embedding_dims
+		args["num_sequences"] = self.num_sequences
+		args["generator"] = self.generator.state_dict()
+		args["embedder"] = self.embedder.state_dict()
+		args["discriminator"] = self.discriminator.state_dict()
+		args["generator_embedder_optimizer"] = self.generator_embedder_optimizer.state_dict()
+		args["discriminator_optimizer"] = self.discriminator_optimizer.state_dict()
+		return args
+
 	def imgsToDevice(self,target,sampled_vids):
 		target[0] = target[0].float()
 		target[1] = target[1].float()
@@ -55,7 +80,11 @@ class MetaLearningStage:
 			sampled_vids[i][1] = sampled_vids[i][1].float()
 		return target, sampled_vids
 
-	def train(self,epochs,save=True):
+	def metaTrain(self,epochs,save=True):
+		now = str(datetime.datetime.now()) + "_{}_{}_{}_epochs".format(self.projection_dims,self.embedding_dims,epochs)
+		saver = Saver(now)
+		if save:
+			saver.makeDir()
 		print("Training for {} epochs".format(epochs))
 		bar = tqdm(np.arange(epochs))
 		generator_losses = [-1]
@@ -63,20 +92,17 @@ class MetaLearningStage:
 		self.generator.train()
 		self.embedder.train()
 		self.discriminator.train()
-		for i in bar:
+		for epoch in bar:
 			bar.set_description("Generator + Embedder loss: {}, Discriminator loss: {}".format(generator_losses[-1],discriminator_losses[-1]))
 			gen_loss = 0.0
 			disc_loss = 0.0
 			for index, data in enumerate(self.dataloader):
 				target, sampled_vids = data
 				target, sampled_vids = self.imgsToDevice(target,sampled_vids)
-				x = target[0]
-				y = target[1]
-
-
-
-				avg_embedding = self.embedder.average_embeddings(sampled_vids).detach()
+				x, y = target
+				avg_embedding = self.embedder.average_embeddings(sampled_vids,w_out_grad=True)
 				x_hat = self.generator(y,avg_embedding).detach()
+
 				# Discriminator Loss
 				self.discriminator_optimizer.zero_grad()
 				# Compute again, just in case gradients reset
@@ -98,5 +124,9 @@ class MetaLearningStage:
 				gen_loss += generator_embedder_loss.item()
 				generator_embedder_loss.backward()
 				self.generator_embedder_optimizer.step()
+
+			if save:
+				saver.saveCheckpoint(epoch,self.toDict(epoch))
+
 			generator_losses.append(gen_loss)
 			discriminator_losses.append(disc_loss)

@@ -231,12 +231,16 @@ class Embedder(torch.nn.Module):
         summed = summed.view(down.size(0),1,down.size(1)) # down.size(0) x 1 x down.size(1)
         return self.relu(summed)
     
-    def average_embeddings(self,sampled_data):
+    def average_embeddings(self,sampled_data,w_out_grad=False):
         scale = 1/len(sampled_data)
-        out = torch.zeros(1,1,self.embedding_dims)
+        out = []
         for x , y in sampled_data:
-            o = scale * self.forward(x,y)
-            out = out + o
+            if w_out_grad:
+                e = self.forward(x,y).detach()
+            else:
+                e = self.forward(x,y)
+            out.append(e)
+        out = scale*torch.stack(out).mean(0)
         return out
 
 class Discriminator(torch.nn.Module):

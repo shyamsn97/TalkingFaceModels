@@ -210,8 +210,30 @@ def deleteSubdirs(directory):
     for s in subs:
         shutil.rmtree(s)
         
-def clean(reshaped_dir,landmark_dir,overlay_dir):
+def cleanImgs(reshaped_dir,landmark_dir,overlay_dir):
     deleteSubdirs(reshaped_dir)
     deleteSubdirs(landmark_dir)
     deleteSubdirs(overlay_dir)
     
+class Saver:
+    def __init__(self,checkpoint_path):
+        self.checkpoint_path = "checkpoints/" + checkpoint_path
+
+    def makeDir(self):
+        try:   
+            os.mkdir(self.checkpoint_path)
+            print("Checkpoint path successfully created!")
+        except:
+            print("Checkpoint path exists")
+
+    def saveCheckpoint(self,epoch,args):
+        filename = "{}_epoch".format(epoch)
+        torch.save(args,self.checkpoint_path + "/{}.tar".format(filename))
+
+class Loader:
+    def __init__(self,tar):
+        self.tar = tar 
+
+    def loadModel(self):
+        checkpoint = torch.load(self.tar)
+        return checkpoint
