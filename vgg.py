@@ -13,7 +13,7 @@ class VGG19(nn.Module):
 		super(VGG19, self).__init__()
 		cuda = torch.cuda.is_available()
 		device = torch.device("cuda" if cuda else "cpu")
-		self.model = vgg.vgg19(pretrained=True).features.to(device).eval()
+		self.model = vgg.vgg19(pretrained=True).features.to(device)
 		self.layers = list(self.model.children())
 		
 	def forward(self, x, target_layers):

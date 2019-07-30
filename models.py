@@ -16,7 +16,7 @@ class Projection(nn.Module):
         return self.projection(embedding)
 
 class GeneratorV1(torch.nn.Module):
-    def __init__(self):
+    def __init__(self,projection_dims):
         super(GeneratorV1,self).__init__()
         """
         V1 of Generator, with adaptive instance norm applied on upsampling and middle residual layers,
@@ -26,7 +26,7 @@ class GeneratorV1(torch.nn.Module):
             e_i = embedding
         """
         # embedding shape N x 1 x B
-        self.projection = Projection(128)
+        self.projection = Projection(projection_dims)
         # projection N x 64 x B
         # ***downsampling part*** #
         # N x 3 x H x W landmark image (224x224)
@@ -34,20 +34,20 @@ class GeneratorV1(torch.nn.Module):
         self.downres2 = ResDownIn(32,[64,64],2) # N x 32 x H // 4 x W // 4 (56x56)
         self.downres3 = ResDownIn(64,[64,64],2) # N x 64 x H // 8 x W // 8 (28x28)
         self.attn1 = SelfAttn(64) # N x 64 x H // 8 x W // 8 (28 x 28)
-        self.downres4 = ResDownIn(64,[64,64],2) # N x 64 x H // 16 x W // 16 (14x14)
+        self.downres4 = ResDownIn(64,[128,128],2) # N x 64 x H // 16 x W // 16 (14x14)
         # ***middle Res block (w / adaptive instance norm)*** #
-        self.res1 = ResAdaIn(64,64)
-        self.res2 = ResAdaIn(64,64)
-        self.res3 = ResAdaIn(64,64)
-        self.res4 = ResAdaIn(64,64)
-        self.res5 = ResAdaIn(64,64)
+        self.res1 = ResAdaIn(128,128)
+        self.res2 = ResAdaIn(128,128)
+        self.res3 = ResAdaIn(128,128)
+        self.res4 = ResAdaIn(128,128)
+        self.res5 = ResAdaIn(128,128)
         # ***upsampling part*** #
-        self.upres1 = ResUpAdaIn(64,[64,64],2) # N x 64 x H // 8 x W // 8 (28x28)
-        self.upres2 = ResUpAdaIn(64,[64,64],2) # N x 64 x H // 4 x W // 4 (56x56)
-        self.attn2 = SelfAttn(64) # N x 64 x H // 8 x W // 8 (56x56)
-        self.upres3 = ResUpAdaIn(64,[64,64],2) # N x 64 x H // 2 x W // 2 (112x112)
-        self.upres4 = ResUpAdaIn(64,[64,64],2) # N x 64 x H x W (224x224)
-        self.conv = conv2d(in_channels = 64, out_channels = 3, 
+        self.upres1 = ResUpAdaIn(128,[128,128],2) # N x 64 x H // 8 x W // 8 (28x28)
+        self.upres2 = ResUpAdaIn(128,[128,128],2) # N x 64 x H // 4 x W // 4 (56x56)
+        self.attn2 = SelfAttn(128) # N x 64 x H // 8 x W // 8 (56x56)
+        self.upres3 = ResUpAdaIn(128,[128,128],2) # N x 64 x H // 2 x W // 2 (112x112)
+        self.upres4 = ResUpAdaIn(128,[128,128],2) # N x 64 x H x W (224x224)
+        self.conv = conv2d(in_channels = 128, out_channels = 3, 
                        bias = True, kernel_size = 1, stride = 1, padding = 0, 
                        spectral = False, init_zero_weights = False,activation = nn.Tanh(),
                        pool = None,norm = None) # N x 3 x H x W
@@ -76,7 +76,7 @@ class GeneratorV1(torch.nn.Module):
         return out
 
 class GeneratorV2(torch.nn.Module):
-    def __init__(self):
+    def __init__(self,projection_dims):
         super(GeneratorV2,self).__init__()
         """
         V2 of Generator, with adaptive instance norm applied on upsampling and middle residual layers, 
@@ -171,14 +171,15 @@ class GeneratorV3(torch.nn.Module):
         self.attn2 = SelfAttn(64) # N x 64 x H // 8 x W // 8 (56x56)
         self.upres3 = ResUpAdaInV2(64,[32,32],projection_dims,2) # N x 32 x H // 2 x W // 2 (112x112)
         self.upres4 = ResUpAdaInV2(32,[3,3],projection_dims,2) # N x 3 x H x W (224x224)
-    
+        self.tanh = nn.Tanh()
+
     def forward(self,y,embedding):
         projection = self.projection(embedding)
         # down
         down = self.downres1(y)
         down = self.downres2(down)
         down = self.downres3(down)
-        down = self.attn1(down)
+        #down = self.attn1(down)
         down = self.downres4(down)
         # middle
         mid = self.res1(down)
@@ -189,10 +190,10 @@ class GeneratorV3(torch.nn.Module):
         # up
         up = self.upres1(mid,projection)
         up = self.upres2(up,projection)
-        up = self.attn2(up)
+        #up = self.attn2(up)
         up = self.upres3(up,projection)
         out = self.upres4(up,projection)
-        return out
+        return self.tanh(out)
 
     def forward_sequence(self,ys,embedding):
         sequence = []
@@ -225,14 +226,13 @@ class Embedder(torch.nn.Module):
         down = self.downres1(cat)
         down = self.downres2(down)
         down = self.downres3(down)
-        down =  self.attn1(down)
+        #down =  self.attn1(down)
         down = self.downres4(down)
-        summed = down.view(down.size(0),down.size(1),-1).sum(-1) # down.size(0) x down.size(1)
+        summed = nn.ReLU()(down.view(down.size(0),down.size(1),-1).sum(-1)) # down.size(0) x down.size(1)
         summed = summed.view(down.size(0),1,down.size(1)) # down.size(0) x 1 x down.size(1)
-        return self.relu(summed)
+        return summed
     
     def average_embeddings(self,sampled_data,w_out_grad=False):
-        scale = 1/len(sampled_data)
         out = []
         for x , y in sampled_data:
             if w_out_grad:
@@ -240,7 +240,7 @@ class Embedder(torch.nn.Module):
             else:
                 e = self.forward(x,y)
             out.append(e)
-        out = scale*torch.stack(out).mean(0)
+        out = torch.stack(out).mean(0)
         return out
 
 class Discriminator(torch.nn.Module):
@@ -253,9 +253,9 @@ class Discriminator(torch.nn.Module):
             stacked
         '''
         ## W matrix ##
-        self.W = nn.Parameter(torch.rand(projection_dims, num_video_sequences).normal_(0.0, 0.01))
-        self.w_0 = nn.Parameter(torch.rand(projection_dims, 1).normal_(0.0, 0.01))
-        self.b = nn.Parameter(torch.rand(1).normal_(0.0, 0.01))
+        self.W = nn.Parameter(torch.rand(projection_dims, num_video_sequences))
+        self.w_0 = nn.Parameter(torch.rand(projection_dims, 1))
+        self.b = nn.Parameter(torch.rand(1))
         #### Image frame ####
         # N x 6 x H x W landmark image + video frame image (224x224)
         self.downres1 = ResDown(6,[32,32],2) # N x 32 x H // 2 x W // 2 (112x112)
@@ -268,27 +268,50 @@ class Discriminator(torch.nn.Module):
         # *** global sum pooling ***
         self.relu = nn.ReLU() # N x 128 
         self.tanh = nn.Tanh()
+        self.sigmoid = nn.Sigmoid()
         
-    def forward(self,x,y,index):
+    def forward(self,x,y,index,w_out_grad=False):
         cat = torch.cat((x,y),1)
         activations = []
         down = self.downres1(cat)
-        activations.append(down)
+        if w_out_grad:
+            activations.append(down.detach())
+        else:
+            activations.append(down)
         down = self.downres2(down)
-        activations.append(down)
+        if w_out_grad:
+            activations.append(down.detach())
+        else:
+            activations.append(down)        
         down = self.downres3(down)
-        activations.append(down)
-        down =  self.attn1(down)
-        activations.append(down)
+        if w_out_grad:
+            activations.append(down.detach())
+        else:
+            activations.append(down)
+        #down =  self.attn1(down)
+        # if w_out_grad:
+        #     activations.append(down.detach())
+        # else:
+        #     activations.append(down)
         down = self.downres4(down)
-        activations.append(down)
+        if w_out_grad:
+            activations.append(down.detach())
+        else:
+            activations.append(down)
         down = self.downres5(down)
-        activations.append(down)
-        summed = down.view(down.size(0),down.size(1),-1).sum(-1) # down.size(0) x down.size(1)
+        if w_out_grad:
+            activations.append(down.detach())
+        else:
+            activations.append(down)
+        summed = nn.ReLU()(down.view(down.size(0),down.size(1),-1).sum(-1)) # down.size(0) x down.size(1)
         summed = summed.view(down.size(0),down.size(1)) # down.size(0) x down.size(1)
         spliced = self.W[:, index].view(-1, 1)
         sum_spliced = spliced + self.w_0
-        out = self.tanh(torch.mm(summed, sum_spliced) + self.b)
+        if w_out_grad:
+            sum_spliced = sum_spliced.detach()
+        out = torch.mm(summed, sum_spliced) + self.b
+        if w_out_grad:
+            out = out.detach()
         return out, activations, spliced        
 
 # if __name__ == "__main__":
