@@ -29,6 +29,6 @@ if parser.test == False:
 	reshaped_sequence_count, reshaped_dict, landmark_dict, num_sequences = readImages(reshaped_sequence_count,reshaped_sequences,landmark_sequences)
 
 	print("Successfully loaded images and landmark images")
-	composer = Composer(projection_dims=128,embedding_dims=128,reshaped_sequences=reshaped_dict,landmark_sequences=landmark_dict,
+	composer = Composer(projection_dims=256,embedding_dims=256,reshaped_sequences=reshaped_dict,landmark_sequences=landmark_dict,
 	                        landmark_sequence_count=reshaped_sequence_count,num_sequences=num_sequences)
 	composer.metaTrain(parser.num_epochs)
